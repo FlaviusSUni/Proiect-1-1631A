@@ -1,27 +1,30 @@
-import express from 'express';
-import helmet from 'helmet';
-import morgan from 'morgan';
-import cors from 'cors';
-import dotenv from 'dotenv';
+import express from "express";
+import helmet from "helmet";
+import morgan from "morgan";
+import cors from "cors";
+import dotenv from "dotenv";
 
-import productRoutes from './routes/productRoutes.js';
-import { sql } from './config/db.js';
+import productRoutes from "./routes/productRoutes.js";
+import { sql } from "./config/db.js";
+import path from "path";
 
 dotenv.config();
 
-
 const app = express();
 const PORT = process.env.PORT || 3000;
+const __dirname = path.resolve();
 
 app.use(express.json());
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: false,
+}));
 app.use(cors());
-app.use(morgan('dev'));
+app.use(morgan("dev"));
 
-app.use('/api/products', productRoutes);
+app.use("/api/products", productRoutes);
 
-async function initDB () {
-try {
+async function initDB() {
+  try {
     await sql`
     CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
@@ -30,16 +33,20 @@ try {
         price DECIMAL(10, 2) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`;
-    console.log('Database connected and ensured products table exists.');
-    
-} catch (error) {
-    console.log('Database connection error:', error);
-    
+    console.log("Database connected and ensured products table exists.");
+  } catch (error) {
+    console.log("Database connection error:", error);
+  }
 }
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.join(__dirname, "frontend", "dist")));
+  app.get(/^\/(?!api).*/, (req, res) => {
+    res.sendFile(path.resolve(__dirname, "frontend", "dist", "index.html"));
+  });
 }
 
 initDB().then(() => {
-    app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
-    });
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
 });
